@@ -352,6 +352,8 @@ h1, h2, h3 { margin: 0; }
 .sep { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .field .muted.small { margin: 2px 0 4px; }
+.paste-area { width: 100%; min-height: 160px; font: inherit; font-size: 13px; line-height: 1.5; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--field); color: var(--text); resize: vertical; -webkit-appearance: none; }
+.paste-area:focus { outline: none; border-color: var(--primary); }
 
 /* ===== 점수 태그 ===== */
 .tag.score { background: #efeafc; color: #6b5bc0; }

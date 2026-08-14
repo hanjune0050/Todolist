@@ -898,11 +898,21 @@ async function copyData() {
   catch (e) { window.prompt('아래 내용을 복사해서 보관하세요', text); }
 }
 function importData(text) {
-  let data; try { data = JSON.parse(text); } catch (e) { return toast('올바른 백업 파일이 아니에요'); }
-  if (!data || !Array.isArray(data.tasks)) return toast('올바른 백업 파일이 아니에요');
+  if (text == null) return toast('불러올 내용이 비어 있어요');
+  // BOM/앞뒤 공백 제거 (iOS에서 저장 시 BOM이 붙는 경우 대비)
+  text = String(text).replace(/^﻿/, '').trim();
+  if (!text) return toast('불러올 내용이 비어 있어요');
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { return toast('JSON을 읽을 수 없어요 — 파일이 손상됐거나 백업 내용이 아니에요'); }
+  if (!data || typeof data !== 'object' || !Array.isArray(data.tasks))
+    return toast('백업 형식이 아니에요 — tasks 목록이 없어요');
   if (!confirm('현재 데이터를 백업 내용으로 덮어씁니다. 계속할까요?')) return;
   state = normalize(data); save(); applyTheme();
-  renderAll(); toast('복원했어요'); $('settingsModal').classList.add('hidden');
+  renderAll();
+  $('settingsModal').classList.add('hidden');
+  $('pasteModal').classList.add('hidden');
+  toast('복원했어요');
 }
 function clearData() {
   if (!confirm('정말 모든 할 일과 기록을 삭제할까요? 되돌릴 수 없습니다.')) return;
@@ -979,8 +989,16 @@ $('copyBtn').addEventListener('click', copyData);
 $('importBtn').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', (e) => {
   const f = e.target.files[0]; if (!f) return;
-  const r = new FileReader(); r.onload = () => importData(String(r.result)); r.readAsText(f); e.target.value = '';
+  const r = new FileReader();
+  r.onload = () => importData(String(r.result));
+  r.onerror = () => toast('파일을 읽지 못했어요');
+  r.readAsText(f); e.target.value = '';
 });
+$('pasteBtn').addEventListener('click', () => { $('pasteText').value = ''; $('pasteModal').classList.remove('hidden'); setTimeout(() => $('pasteText').focus(), 60); });
+$('pasteCancel').addEventListener('click', () => $('pasteModal').classList.add('hidden'));
+$('pasteModalClose').addEventListener('click', () => $('pasteModal').classList.add('hidden'));
+$('pasteRestore').addEventListener('click', () => importData($('pasteText').value));
+$('pasteModal').addEventListener('click', (e) => { if (e.target === $('pasteModal')) $('pasteModal').classList.add('hidden'); });
 $('clearBtn').addEventListener('click', clearData);
 
 $('addScoreBtn').addEventListener('click', openScoreModal);
