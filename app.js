@@ -264,7 +264,11 @@ function renderTimetable() {
     const r = rec[t.id];
     if (!r || !r.sessions) continue;
     for (const s of r.sessions) {
-      const startMin = minutesOfDay(s.start), endMin = minutesOfDay(s.end);
+      const startMin = minutesOfDay(s.start);
+      // 자정을 넘어가면 그날은 24:00까지만 표시(통째로 사라지지 않게)
+      const sd = new Date(s.start);
+      const nextMid = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + 1).getTime();
+      const endMin = s.end >= nextMid ? 24 * 60 : minutesOfDay(s.end);
       if (endMin <= startMin) continue;
       const startHour = Math.floor(startMin / 60);
       for (let h = TT_H0; h <= TT_H1; h++) {
@@ -701,7 +705,7 @@ function openTimer(task) {
   const resuming = !done && left != null && left > 0;      // 일시정지해 둔 걸 이어서
   const remaining = resuming ? left : baseTotal;
   const total = Math.max(baseTotal, remaining);
-  timer = { task, remaining, total, running: false, deadline: 0, segStart: 0, tickId: null };
+  timer = { task, remaining, total, running: false, deadline: 0, segStart: 0, tickId: null, started: resuming };
   $('timerTitle').textContent = task.title;
   $('ringFg').style.stroke = task.color;
   $('timerToggle').style.display = ''; $('timerDone').style.display = 'none';
@@ -734,8 +738,10 @@ function extendTimer(min) {
   const ms = min * 60000;
   timer.remaining += ms;
   timer.total = Math.max(timer.total, timer.remaining);
-  if (timer.running) timer.deadline += ms;
-  updateTimerUI(); saveActive();
+  timer.started = true;
+  if (timer.running) { timer.deadline += ms; saveActive(); }
+  else setLeft(selectedDate, timer.task.id, timer.remaining);  // 일시정지 중 연장도 저장
+  updateTimerUI();
   toast(`+${min}분 연장`);
 }
 // 조기 종료 (모든 할 일)
@@ -761,7 +767,7 @@ function handleTick() {
 function startTimer() {
   if (timer.running) return;
   ensureAudio(); reqWake();
-  timer.running = true; timer.segStart = Date.now(); timer.deadline = Date.now() + timer.remaining;
+  timer.running = true; timer.started = true; timer.segStart = Date.now(); timer.deadline = Date.now() + timer.remaining;
   timer.tickId = setInterval(handleTick, 250);
   $('timerToggle').textContent = '일시정지'; $('timerState').textContent = '진행 중';
   $('timerEarly').style.display = '';  // 모든 할 일 조기 종료 가능
@@ -804,8 +810,8 @@ function completeTimer() {
 function closeTimer() {
   if (timer) {
     if (timer.running) { clearInterval(timer.tickId); timer.remaining = Math.max(0, timer.deadline - Date.now()); finishSegment(Date.now()); relWake(); }
-    // 완료되지 않았고 남은 시간이 있으면 진행 상태 저장(다음에 이어서)
-    if (!isDone(selectedDate, timer.task.id) && timer.remaining > 0 && timer.remaining < timer.task.duration * 60 * 1000)
+    // 시작한 적 있고 완료되지 않았으며 남은 시간이 있으면 진행 상태 저장(다음에 이어서)
+    if (timer.started && !isDone(selectedDate, timer.task.id) && timer.remaining > 0)
       setLeft(selectedDate, timer.task.id, timer.remaining);
   }
   clearActive(); timer = null;
@@ -821,7 +827,7 @@ function restoreActive() {
   const task = state.tasks.find(t => t.id === a.taskId);
   if (!task) { clearActive(); return; }
   selectedDate = a.date; weekStart = startOfWeek(parse(a.date));
-  timer = { task, total: a.total, remaining: a.remaining, running: false, deadline: a.deadline, segStart: 0, tickId: null };
+  timer = { task, total: a.total, remaining: a.remaining, running: false, deadline: a.deadline, segStart: 0, tickId: null, started: true };
   $('timerTitle').textContent = task.title; $('ringFg').style.stroke = task.color;
   $('timerToggle').style.display = ''; $('timerDone').style.display = 'none';
   $('timerEarly').style.display = 'none'; $('timerExtend').style.display = ''; hideScore();
@@ -1000,6 +1006,9 @@ if (window.matchMedia) {
 applyTheme();
 renderAll();
 restoreActive();
+
+// 저장소 영구 요청 (iOS/브라우저가 기록을 함부로 지우지 않도록 시도)
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
 /* ---------- 서비스워커 (오프라인) ---------- */
 if ('serviceWorker' in navigator) {
