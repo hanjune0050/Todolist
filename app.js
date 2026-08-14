@@ -7,10 +7,6 @@
 /* ---------- 상수 ---------- */
 const EXAM_TIMES = { 국어: 80, 수학: 100, 영어: 50, 탐구: 30 };
 const MARKING_REDUCE = { 국어: 3, 수학: 3, 영어: 0, 탐구: 1 };
-const TT_START = 8 * 60 + 30;   // 08:30 (분)
-const TT_END = 24 * 60;         // 24:00 (분)
-const HOUR_PX = 46;             // 타임테이블 1시간 높이(px) — CSS .tt-hour 와 일치
-const PX_PER_MIN = HOUR_PX / 60;
 const COLORS = ['#ef4444', '#f59e0b', '#eab308', '#22c55e', '#14b8a6',
   '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b'];
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
@@ -174,49 +170,115 @@ function renderTasks() {
 }
 
 /* =========================================================================
- * 렌더링 — 타임테이블 (세로 시간표)
+ * 렌더링 — 타임테이블 (세로=시간대, 가로=분  ->  지그재그 그리드)
+ *   각 시간(예: 09시)을 한 행으로 두고, 가로축 0~60분으로 나눕니다.
+ *   연속으로 공부하면 시간대별 가로 막대가 계단(지그재그)처럼 이어집니다.
  * ========================================================================= */
+const TT_H0 = 8;   // 첫 행 시간(08시). 실제 사용 시작은 08:30 -> 앞 30분은 빗금 처리.
+const TT_H1 = 23;  // 마지막 행 시간(23시, 24:00 까지)
+
 function renderTimetable() {
   timetableEl.innerHTML = '';
-  const totalMin = TT_END - TT_START;
-  timetableEl.style.height = (totalMin * PX_PER_MIN) + 'px';
 
-  // 시간 눈금 (정시마다). 08:30 시작이므로 첫 정시는 09:00.
-  for (let h = 9; h <= 24; h++) {
-    const top = (h * 60 - TT_START) * PX_PER_MIN;
-    const row = document.createElement('div');
-    row.className = 'tt-hour';
-    row.style.position = 'absolute';
-    row.style.top = top + 'px';
-    row.style.left = '0'; row.style.right = '0'; row.style.height = HOUR_PX + 'px';
-    row.innerHTML =
-      `<div class="hr-line"></div>` +
-      `<div class="hr-label">${String(h % 24).padStart(2, '0')}:00</div>`;
-    timetableEl.appendChild(row);
+  // 상단 분 눈금 헤더 (0 10 20 30 40 50 60)
+  const head = document.createElement('div');
+  head.className = 'tt-head';
+  let marks = '';
+  for (let m = 0; m <= 60; m += 10) {
+    marks += `<span class="mk" style="left:${(m / 60) * 100}%">${m}</span>`;
   }
+  head.innerHTML = `<div class="tt-corner"></div><div class="tt-minmarks">${marks}</div>`;
+  timetableEl.appendChild(head);
 
-  // 세션 블록: 선택 날짜의 모든 할 일 세션
+  // 선택 날짜의 세션을 (시간행별) 세그먼트로 분할
   const rec = state.records[selectedDate] || {};
+  const rowSegs = {}; // hour -> [{l,w,color,title,timeStr,isStart}]
   for (const t of state.tasks) {
     const r = rec[t.id];
     if (!r || !r.sessions) continue;
     for (const s of r.sessions) {
       const startMin = minutesOfDay(s.start);
       const endMin = minutesOfDay(s.end);
-      const top = (Math.max(startMin, TT_START) - TT_START) * PX_PER_MIN;
-      const bottom = (Math.min(endMin, TT_END) - TT_START) * PX_PER_MIN;
-      const h = Math.max(bottom - top, 16);
-      if (bottom <= 0 || top >= totalMin * PX_PER_MIN) continue;
-      const block = document.createElement('div');
-      block.className = 'tt-block';
-      block.style.top = top + 'px';
-      block.style.height = h + 'px';
-      block.style.background = t.color;
-      block.innerHTML =
-        `<div>${escapeHtml(t.title)}</div>` +
-        `<div class="tt-time">${hhmm(s.start)}–${hhmm(s.end)}</div>`;
-      timetableEl.appendChild(block);
+      if (endMin <= startMin) continue;
+      const startHour = Math.floor(startMin / 60);
+      for (let h = TT_H0; h <= TT_H1; h++) {
+        const ovS = Math.max(startMin, h * 60);
+        const ovE = Math.min(endMin, h * 60 + 60);
+        if (ovE <= ovS) continue;
+        (rowSegs[h] = rowSegs[h] || []).push({
+          l: ((ovS - h * 60) / 60) * 100,
+          w: ((ovE - ovS) / 60) * 100,
+          color: t.color,
+          title: t.title,
+          timeStr: `${hhmm(s.start)}–${hhmm(s.end)}`,
+          isStart: h === startHour,
+        });
+      }
     }
+  }
+
+  // 시간 행 생성
+  for (let h = TT_H0; h <= TT_H1; h++) {
+    const row = document.createElement('div');
+    row.className = 'tt-row';
+
+    const label = document.createElement('div');
+    label.className = 'tt-hour-label';
+    label.textContent = `${String(h).padStart(2, '0')}:00`;
+
+    const track = document.createElement('div');
+    track.className = 'tt-track';
+
+    // 세로 눈금선 (10분 간격, 30분은 진하게)
+    for (let m = 10; m < 60; m += 10) {
+      const gl = document.createElement('div');
+      gl.className = 'tt-gl' + (m === 30 ? ' half' : '');
+      gl.style.left = ((m / 60) * 100) + '%';
+      track.appendChild(gl);
+    }
+    // 첫 행(08시)의 08:00~08:30 은 사용 안 함 표시
+    if (h === TT_H0) {
+      const dis = document.createElement('div');
+      dis.className = 'tt-disabled';
+      dis.style.left = '0'; dis.style.width = '50%';
+      track.appendChild(dis);
+    }
+
+    // 세그먼트 레인 배치(겹칠 때 위/아래로 나눔)
+    const segs = (rowSegs[h] || []).slice().sort((a, b) => a.l - b.l);
+    const laneEnds = []; // 각 레인의 오른쪽 끝(%)
+    segs.forEach(sg => {
+      let lane = laneEnds.findIndex(end => sg.l >= end - 0.001);
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(0); }
+      laneEnds[lane] = sg.l + sg.w;
+      sg._lane = lane;
+    });
+    const lanes = Math.max(1, laneEnds.length);
+    segs.forEach(sg => {
+      const el = document.createElement('div');
+      el.className = 'tt-seg';
+      el.style.left = sg.l + '%';
+      el.style.width = 'calc(' + sg.w + '% - 2px)';
+      el.style.background = sg.color;
+      // 레인 높이 분할
+      const topPct = (sg._lane / lanes) * 100;
+      const hPct = (1 / lanes) * 100;
+      el.style.top = `calc(${topPct}% + 3px)`;
+      el.style.bottom = 'auto';
+      el.style.height = `calc(${hPct}% - 6px)`;
+      // 시작 행에만 제목/시간 표시 (좁으면 자동 숨김)
+      if (sg.isStart && sg.w > 12 && lanes === 1) {
+        el.innerHTML = `<div>${escapeHtml(sg.title)}</div><div class="tt-time">${sg.timeStr}</div>`;
+      } else if (sg.isStart && sg.w > 18) {
+        el.innerHTML = `<div>${escapeHtml(sg.title)}</div>`;
+      }
+      el.title = `${sg.title}  ${sg.timeStr}`;
+      track.appendChild(el);
+    });
+
+    row.appendChild(label);
+    row.appendChild(track);
+    timetableEl.appendChild(row);
   }
 }
 function minutesOfDay(ms) { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); }

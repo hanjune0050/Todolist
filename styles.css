@@ -1,3 +1,12 @@
+/* ===== 폰트 (오프라인 내장) ===== */
+@font-face {
+  font-family: 'Pretendard Variable';
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url('fonts/PretendardVariable.woff2') format('woff2-variations');
+}
+
 /* ===== 기본 리셋 & 테마 ===== */
 :root {
   --bg: #f4f6fb;
@@ -19,10 +28,14 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
-    "Segoe UI", Roboto, sans-serif;
+  font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   -webkit-user-select: none;
   user-select: none;
@@ -133,20 +146,34 @@ h1, h2, h3 { margin: 0; }
 .empty-emoji { font-size: 40px; margin-bottom: 8px; }
 .empty p { line-height: 1.6; margin: 0; font-size: 14px; }
 
-/* ===== 타임테이블 ===== */
-.timetable {
-  position: relative; margin: 6px 16px 18px 52px; border-left: 2px solid var(--line);
+/* ===== 타임테이블 (시간대 × 분 그리드) ===== */
+.timetable { margin: 2px 16px 18px; }
+/* 상단 분 눈금 헤더 */
+.tt-head { display: flex; align-items: flex-end; height: 20px; margin-bottom: 2px; }
+.tt-head .tt-corner { flex: 0 0 42px; }
+.tt-head .tt-minmarks { position: relative; flex: 1; height: 100%; }
+.tt-minmarks .mk { position: absolute; top: 0; transform: translateX(-50%); font-size: 10px; color: var(--muted); font-weight: 600; }
+.tt-minmarks .mk:first-child { transform: none; }
+.tt-minmarks .mk:last-child { transform: translateX(-100%); }
+
+.tt-row { display: flex; align-items: stretch; height: 40px; }
+.tt-hour-label {
+  flex: 0 0 42px; text-align: right; padding-right: 8px; padding-top: 3px;
+  font-size: 11px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums;
 }
-.tt-hour { position: relative; height: 46px; }
-.tt-hour .hr-line { position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed var(--line); }
-.tt-hour .hr-label { position: absolute; left: -46px; top: -8px; width: 40px; text-align: right; font-size: 11px; color: var(--muted); font-weight: 600; }
-.tt-block {
-  position: absolute; left: 52px; right: 8px; border-radius: 8px;
-  color: #fff; font-size: 12px; font-weight: 700; padding: 4px 8px; overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,.12); min-height: 16px;
+.tt-track { position: relative; flex: 1; border-top: 1px solid var(--line); }
+.tt-row:last-child .tt-track { border-bottom: 1px solid var(--line); }
+.tt-gl { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #eef1f7; }
+.tt-gl.half { border-left-color: #dde3ee; }
+.tt-disabled { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, #f1f3f8, #f1f3f8 5px, #e9edf5 5px, #e9edf5 10px); }
+.tt-seg {
+  position: absolute; top: 4px; bottom: 4px; border-radius: 6px;
+  color: #fff; font-size: 11px; font-weight: 700; line-height: 1.15;
+  padding: 2px 6px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.16);
+  display: flex; flex-direction: column; justify-content: center; white-space: nowrap;
 }
-.tt-block .tt-time { font-size: 10px; font-weight: 600; opacity: .9; }
-.timetable-panel .panel-head { padding-left: 60px; }
+.tt-seg .tt-time { font-size: 9px; font-weight: 600; opacity: .92; }
+.tt-empty-note { text-align: center; color: var(--muted); font-size: 12px; padding: 10px 0 4px; }
 
 /* ===== 모달 공통 ===== */
 .modal-overlay {

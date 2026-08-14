@@ -66,6 +66,7 @@ app.js          모든 기능(캘린더/할 일/타이머/타임테이블/모의
 manifest.json   PWA 설정(아이콘, 이름 등)
 sw.js           오프라인 캐시(서비스워커)
 icons/          앱 아이콘
+fonts/          내장 폰트(Pretendard, 오프라인용)
 tools/make_icons.py  아이콘 생성 스크립트
 ```
 
