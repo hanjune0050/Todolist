@@ -16,7 +16,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1 class="brand">📚 공부 타이머</h1>
+    <h1 class="brand"><span class="brand-dot"></span>공부 타이머</h1>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="main">할 일</button>
       <button class="tab" data-view="month">월간</button>
@@ -25,7 +25,9 @@
     <div class="topbar-actions">
       <button id="todayBtn" class="btn ghost">오늘</button>
       <button id="addBtn" class="btn primary">+ 할 일</button>
-      <button id="settingsBtn" class="btn icon" aria-label="설정" title="설정">⚙️</button>
+      <button id="settingsBtn" class="btn icon" aria-label="설정" title="설정">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
   </header>
 
@@ -48,7 +50,6 @@
         </div>
         <ul id="taskList" class="task-list"></ul>
         <div id="taskEmpty" class="empty">
-          <div class="empty-emoji">🗒️</div>
           <p>이 날짜에 등록된 할 일이 없어요.<br />오른쪽 위 <b>+ 할 일</b>로 추가하세요.</p>
         </div>
       </section>
@@ -89,7 +90,6 @@
       <h3 class="stats-h">과목 · 할 일별 공부 시간</h3>
       <div id="statsBars"></div>
       <div id="statsEmpty" class="empty">
-        <div class="empty-emoji">📊</div>
         <p>아직 타이머로 공부한 기록이 없어요.<br />할 일을 눌러 타이머를 돌리면 여기에 쌓입니다.</p>
       </div>
     </section>
@@ -143,13 +143,18 @@
             <select id="fRepeat">
               <option value="none">반복 없음</option>
               <option value="daily">매일</option>
-              <option value="weekly">매주</option>
+              <option value="weekdays">요일 선택</option>
             </select>
           </label>
           <label class="field">
             <span id="startLabel">날짜</span>
             <input id="fStart" type="date" />
           </label>
+        </div>
+
+        <div class="field hidden" id="weekdayField">
+          <span>반복 요일</span>
+          <div class="weekday-picker" id="weekdayPicker"></div>
         </div>
 
         <label class="field" id="endField" style="display:none">
@@ -203,11 +208,11 @@
       </div>
       <div class="modal-body">
         <label class="field toggle-field">
-          <span>🌙 다크 모드</span>
+          <span>다크 모드</span>
           <input id="setDark" type="checkbox" class="switch" />
         </label>
         <label class="field toggle-field">
-          <span>🔔 완료음 · 진동</span>
+          <span>완료음 · 진동</span>
           <input id="setSound" type="checkbox" class="switch" />
         </label>
 
@@ -216,9 +221,9 @@
           <span>데이터 백업 / 복원</span>
           <p class="muted small">모든 기록은 이 기기에만 저장됩니다. 사파리 데이터를 지우기 전에 백업해 두세요.</p>
           <div class="btn-row">
-            <button id="exportBtn" class="btn">⬇️ 내보내기(파일)</button>
-            <button id="copyBtn" class="btn">📋 JSON 복사</button>
-            <button id="importBtn" class="btn">⬆️ 가져오기(파일)</button>
+            <button id="exportBtn" class="btn">내보내기(파일)</button>
+            <button id="copyBtn" class="btn">JSON 복사</button>
+            <button id="importBtn" class="btn">가져오기(파일)</button>
           </div>
         </div>
 

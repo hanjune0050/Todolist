@@ -7,8 +7,11 @@
 /* ---------- 상수 ---------- */
 const EXAM_TIMES = { 국어: 80, 수학: 100, 영어: 50, 탐구: 30 };
 const MARKING_REDUCE = { 국어: 3, 수학: 3, 영어: 0, 탐구: 1 };
-const COLORS = ['#ef4444', '#f59e0b', '#eab308', '#22c55e', '#14b8a6',
-  '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b'];
+// 차분하고 오묘한 뮤트 톤 팔레트
+const COLORS = ['#B5654D', '#C2894A', '#8A9A5B', '#4F8A7B', '#3E7C8A',
+  '#5B6B9E', '#7A6BA6', '#9C6B8E', '#B06A76', '#6B7280'];
+// 과목별 기본색 (선택 시 자동 지정)
+const SUBJECT_COLORS = { 국어: '#B5654D', 수학: '#45688E', 영어: '#4F8A7B', 탐구: '#7A6BA6' };
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const SESSION_MIN_MS = 60 * 1000;   // 1분 이상만 기록
 const TT_H0 = 8, TT_H1 = 23;        // 타임테이블 시간 행(08시~23시, 24:00까지)
@@ -68,8 +71,18 @@ function occursOn(task, dateStr) {
   if (task.end && date > parse(task.end)) return false;
   if (task.repeat === 'none') return dateStr === task.start;
   if (task.repeat === 'daily') return true;
-  if (task.repeat === 'weekly') return date.getDay() === start.getDay();
+  if (task.repeat === 'weekdays') return Array.isArray(task.days) && task.days.includes(date.getDay());
+  if (task.repeat === 'weekly') return date.getDay() === start.getDay(); // 예전 데이터 호환
   return false;
+}
+function repeatLabel(task) {
+  if (task.repeat === 'daily') return '매일';
+  if (task.repeat === 'weekly') return '매주';
+  if (task.repeat === 'weekdays') {
+    const ds = (task.days || []).slice().sort((a, b) => a - b).map(d => DOW[d]);
+    return ds.length === 7 ? '매일' : ds.join('·');
+  }
+  return '';
 }
 function tasksForDate(dateStr) {
   return state.tasks.filter(t => occursOn(t, dateStr)).sort((a, b) => (a.created || 0) - (b.created || 0));
@@ -160,15 +173,16 @@ function renderTasks() {
     li.className = 'task-item' + (done ? ' done' : '');
     li.style.setProperty('--c', t.color);
 
-    const tags = [`<span class="tag dur">⏱ ${t.duration}분</span>`];
+    const tags = [`<span class="tag dur">${t.duration}분</span>`];
     if (t.exam) tags.push(`<span class="tag exam">모의고사 · ${t.exam.subject}</span>`);
-    if (t.repeat !== 'none') tags.push(`<span class="tag repeat">${t.repeat === 'daily' ? '매일' : '매주'}</span>`);
+    if (t.repeat !== 'none') tags.push(`<span class="tag repeat">${repeatLabel(t)}</span>`);
 
     li.innerHTML =
       `<div class="task-check ${done ? 'done' : ''}" style="${done ? `background:${t.color};` : ''}"></div>` +
       `<div class="task-main"><div class="task-title">${escapeHtml(t.title)}</div>` +
       `<div class="task-meta">${tags.join('')}</div></div>` +
-      `<button class="btn icon task-edit" aria-label="수정">✏️</button>`;
+      `<button class="btn icon task-edit" aria-label="수정">` +
+      `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
 
     li.querySelector('.task-check').addEventListener('click', (e) => { e.stopPropagation(); setDone(selectedDate, t.id, !done); renderAll(); });
     li.querySelector('.task-main').addEventListener('click', () => openTimer(t));
@@ -345,7 +359,7 @@ function renderAll() {
 /* =========================================================================
  * 할 일 추가/수정 모달
  * ========================================================================= */
-let editingId = null, pickedColor = COLORS[5], pickedSubject = null;
+let editingId = null, pickedColor = COLORS[5], pickedSubject = null, pickedDays = [];
 
 function buildColorPicker() {
   const wrap = $('colorPicker'); wrap.innerHTML = '';
@@ -357,22 +371,42 @@ function buildColorPicker() {
     wrap.appendChild(s);
   });
 }
+function buildWeekdayPicker() {
+  const wrap = $('weekdayPicker'); wrap.innerHTML = '';
+  DOW.forEach((label, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'wd' + (pickedDays.includes(i) ? ' active' : '') + (i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      if (pickedDays.includes(i)) pickedDays = pickedDays.filter(x => x !== i);
+      else pickedDays.push(i);
+      buildWeekdayPicker();
+    });
+    wrap.appendChild(b);
+  });
+}
 function openTaskModal(task) {
   editingId = task ? task.id : null;
   $('taskModalTitle').textContent = task ? '할 일 수정' : '할 일 추가';
   $('deleteTaskBtn').style.display = task ? '' : 'none';
   if (task) {
     $('fTitle').value = task.title; $('fDuration').value = task.duration;
-    $('fRepeat').value = task.repeat; $('fStart').value = task.start; $('fEnd').value = task.end || '';
+    // 예전 'weekly' 데이터는 '요일 선택'으로 변환
+    const rep = task.repeat === 'weekly' ? 'weekdays' : task.repeat;
+    $('fRepeat').value = rep; $('fStart').value = task.start; $('fEnd').value = task.end || '';
     pickedColor = task.color; $('fExam').checked = !!task.exam;
     pickedSubject = task.exam ? task.exam.subject : null; $('fMarking').checked = task.exam ? !!task.exam.marking : false;
+    pickedDays = Array.isArray(task.days) ? task.days.slice()
+      : (task.repeat === 'weekly' ? [parse(task.start).getDay()] : []);
   } else {
     $('fTitle').value = ''; $('fDuration').value = 25; $('fRepeat').value = 'none';
     $('fStart').value = selectedDate; $('fEnd').value = '';
     pickedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
     $('fExam').checked = false; pickedSubject = null; $('fMarking').checked = false;
+    pickedDays = [parse(selectedDate).getDay()];
   }
-  buildColorPicker(); syncExamUI(); syncRepeatUI();
+  buildColorPicker(); buildWeekdayPicker(); syncExamUI(); syncRepeatUI();
   $('taskModal').classList.remove('hidden');
   setTimeout(() => $('fTitle').focus(), 50);
 }
@@ -381,6 +415,7 @@ function syncRepeatUI() {
   const rep = $('fRepeat').value;
   $('startLabel').textContent = rep === 'none' ? '날짜' : '시작 날짜';
   $('endField').style.display = rep === 'none' ? 'none' : '';
+  $('weekdayField').classList.toggle('hidden', rep !== 'weekdays');
 }
 function syncExamUI() {
   const on = $('fExam').checked;
@@ -404,19 +439,19 @@ function saveTask() {
   if (!duration || duration < 1) return toast('소요 시간을 확인하세요');
   if (!start) return toast('날짜를 선택하세요');
   if (examOn && !pickedSubject) return toast('모의고사 과목을 선택하세요');
+  if (repeat === 'weekdays' && pickedDays.length === 0) return toast('반복할 요일을 하나 이상 선택하세요');
   if (repeat !== 'none') {
     if (!end) return toast('종료 날짜를 선택하세요');
     if (parse(end) < parse(start)) return toast('종료 날짜가 시작보다 빠릅니다');
   }
   const exam = examOn ? { subject: pickedSubject, marking: $('fMarking').checked } : null;
+  const days = repeat === 'weekdays' ? pickedDays.slice().sort((a, b) => a - b) : null;
+  const fields = { title, color: pickedColor, duration, repeat, start, end: repeat === 'none' ? null : end, exam, days };
   if (editingId) {
     const t = state.tasks.find(x => x.id === editingId);
-    Object.assign(t, { title, color: pickedColor, duration, repeat, start, end: repeat === 'none' ? null : end, exam });
+    Object.assign(t, fields);
   } else {
-    state.tasks.push({
-      id: 'T' + Date.now() + Math.random().toString(36).slice(2, 6),
-      title, color: pickedColor, duration, repeat, start, end: repeat === 'none' ? null : end, exam, created: Date.now(),
-    });
+    state.tasks.push(Object.assign({ id: 'T' + Date.now() + Math.random().toString(36).slice(2, 6), created: Date.now() }, fields));
   }
   save(); closeTaskModal(); renderAll(); toast(editingId ? '수정했어요' : '추가했어요');
 }
@@ -522,7 +557,7 @@ function completeTimer() {
   clearInterval(timer.tickId); timer.running = false; relWake();
   setDone(selectedDate, timer.task.id, true);
   $('timerToggle').style.display = 'none'; $('timerDone').style.display = '';
-  $('timerState').textContent = '완료! 🎉';
+  $('timerState').textContent = '완료!';
   playChime(); buzz(); clearActive(); renderAll();
 }
 function closeTimer() {
@@ -551,7 +586,7 @@ function restoreActive() {
       setDone(a.date, task.id, true);
       timer.remaining = 0; updateTimerUI();
       $('timerToggle').style.display = 'none'; $('timerDone').style.display = '';
-      $('timerState').textContent = '완료! 🎉'; clearActive();
+      $('timerState').textContent = '완료!'; clearActive();
       $('timerModal').classList.remove('hidden');
       setTimeout(() => toast('자리를 비운 사이 타이머가 완료됐어요'), 300);
     } else {
@@ -658,7 +693,11 @@ $('deleteTaskBtn').addEventListener('click', deleteTask);
 $('fRepeat').addEventListener('change', syncRepeatUI);
 $('fExam').addEventListener('change', syncExamUI);
 $('fMarking').addEventListener('change', () => { if ($('fExam').checked) applyExamDuration(); });
-document.querySelectorAll('#examSubjects button').forEach(b => b.addEventListener('click', () => { pickedSubject = b.dataset.subj; syncExamUI(); }));
+document.querySelectorAll('#examSubjects button').forEach(b => b.addEventListener('click', () => {
+  pickedSubject = b.dataset.subj;
+  if (SUBJECT_COLORS[pickedSubject]) { pickedColor = SUBJECT_COLORS[pickedSubject]; buildColorPicker(); }
+  syncExamUI();
+}));
 $('taskModal').addEventListener('click', (e) => { if (e.target === $('taskModal')) closeTaskModal(); });
 
 $('timerToggle').addEventListener('click', () => { timer.running ? pauseTimer() : startTimer(); });

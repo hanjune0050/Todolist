@@ -9,53 +9,53 @@
 
 /* ===== 기본 리셋 & 테마 ===== */
 :root {
-  --bg: #f4f6fb;
+  --bg: #f2f3f7;
   --panel: #ffffff;
-  --line: #e6e9f0;
-  --text: #1f2430;
-  --muted: #8a90a2;
-  --primary: #3b82f6;
-  --primary-d: #2563eb;
-  --danger: #ef4444;
-  --ok: #22c55e;
-  --shadow: 0 6px 24px rgba(30, 41, 59, 0.08);
+  --line: #e7e6ee;
+  --text: #23262f;
+  --muted: #8b8f9e;
+  --primary: #5560c8;
+  --primary-d: #464fb0;
+  --danger: #c0574f;
+  --ok: #4f8a7b;
+  --shadow: 0 8px 28px rgba(40, 42, 70, 0.08);
   --radius: 16px;
-  --today: #fef3c7;
-  --done-day: #dcfce7;
-  --sel: #dbeafe;
+  --today: #f6efdd;
+  --done-day: #dfebe2;
+  --sel: #e3e4f6;
   --field: #ffffff;
-  --soft: #eef1f7;
-  --item: #fafbfe;
-  --tag: #eef1f7;
-  --hatch1: #f1f3f8;
-  --hatch2: #e9edf5;
-  --gl: #eef1f7;
-  --topbar: rgba(244, 246, 251, 0.85);
+  --soft: #eeeef5;
+  --item: #faf9fc;
+  --tag: #eeeef5;
+  --hatch1: #f1f1f6;
+  --hatch2: #e9e9f1;
+  --gl: #eeeef4;
+  --topbar: rgba(242, 243, 247, 0.85);
 }
 
 /* ===== 다크 모드 ===== */
 :root[data-theme="dark"] {
-  --bg: #0f141b;
-  --panel: #171e28;
-  --line: #273140;
-  --text: #e7ebf3;
-  --muted: #8b93a7;
-  --primary: #4b8ff8;
-  --primary-d: #3b82f6;
-  --danger: #f26d6d;
-  --ok: #34d07a;
-  --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-  --today: #3a3320;
-  --done-day: #17351f;
-  --sel: #1e3a5f;
-  --field: #1e2632;
-  --soft: #232c38;
-  --item: #1c242f;
-  --tag: #263143;
-  --hatch1: #1a222d;
-  --hatch2: #212a36;
-  --gl: #222b37;
-  --topbar: rgba(15, 20, 27, 0.82);
+  --bg: #12141c;
+  --panel: #191c26;
+  --line: #2a2e3c;
+  --text: #e6e7ef;
+  --muted: #8a8ea1;
+  --primary: #7c86e6;
+  --primary-d: #5560c8;
+  --danger: #d67a72;
+  --ok: #5fa992;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  --today: #35301f;
+  --done-day: #1c3327;
+  --sel: #2a2e56;
+  --field: #202432;
+  --soft: #242836;
+  --item: #1d2130;
+  --tag: #272b3b;
+  --hatch1: #1b1f2b;
+  --hatch2: #222636;
+  --gl: #232838;
+  --topbar: rgba(18, 20, 28, 0.82);
 }
 :root[data-theme="dark"] .tag.dur { background: #1e3357; color: #9cc2ff; }
 :root[data-theme="dark"] .tag.exam { background: #2f2952; color: #c4b6ff; }
@@ -177,9 +177,9 @@ h1, h2, h3 { margin: 0; }
 .task-item.done .task-title { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 2px; }
 .task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
 .tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--tag); color: var(--muted); }
-.tag.dur { background: #e0edff; color: var(--primary-d); }
-.tag.exam { background: #ede9fe; color: #7c3aed; }
-.tag.repeat { background: #f0fdf4; color: #16a34a; }
+.tag.dur { background: #e6e7f6; color: var(--primary-d); }
+.tag.exam { background: #efe8f2; color: #8a5a8f; }
+.tag.repeat { background: #e4efe7; color: #3f7a63; }
 .task-edit { flex: 0 0 auto; }
 
 /* ===== 빈 상태 ===== */
@@ -247,10 +247,10 @@ h1, h2, h3 { margin: 0; }
 .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .15s; }
 .switch:checked::after { transform: translateX(18px); }
 
-.exam-box { background: #f7f5ff; border: 1px solid #e9e4ff; border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+.exam-box { background: #f5f2f6; border: 1px solid #e7dfe9; border-radius: 12px; padding: 12px; margin-bottom: 14px; }
 .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
-.seg button { font: inherit; font-size: 12px; font-weight: 700; padding: 10px 4px; border: 1.5px solid #e9e4ff; background: #fff; border-radius: 10px; cursor: pointer; color: #6d28d9; }
-.seg button.active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+.seg button { font: inherit; font-size: 12px; font-weight: 700; padding: 10px 4px; border: 1.5px solid #e7dfe9; background: var(--field); border-radius: 10px; cursor: pointer; color: #8a5a8f; }
+.seg button.active { background: #7a6ba6; color: #fff; border-color: #7a6ba6; }
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
 .check-row input { width: 18px; height: 18px; }
 
@@ -281,6 +281,25 @@ h1, h2, h3 { margin: 0; }
 .toast.hidden { display: none; }
 
 .hidden { display: none !important; }
+
+/* ===== 브랜드 로고 ===== */
+.brand { display: flex; align-items: center; gap: 9px; }
+.brand-dot {
+  width: 20px; height: 20px; border-radius: 7px; flex: 0 0 auto;
+  background: linear-gradient(135deg, var(--primary), #7a6ba6 55%, #b5654d);
+  box-shadow: 0 2px 6px rgba(85, 96, 200, 0.35);
+}
+
+/* ===== 요일 선택 ===== */
+.weekday-picker { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.wd {
+  font: inherit; font-weight: 700; font-size: 13px; padding: 10px 0; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--field); color: var(--muted); cursor: pointer;
+  transition: all .12s;
+}
+.wd.sun { color: #c0574f; } .wd.sat { color: #4e6ca8; }
+.wd.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.wd.active.sun, .wd.active.sat { color: #fff; }
 
 /* ===== 탭 ===== */
 .tabs { display: flex; gap: 4px; background: var(--soft); padding: 4px; border-radius: 12px; }
