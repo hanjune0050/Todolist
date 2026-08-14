@@ -104,6 +104,18 @@ function addSession(dateStr, taskId, start, end) {
   recFor(dateStr, taskId, true).sessions.push({ start, end });
   save();
 }
+function getScore(dateStr, taskId) { const r = recFor(dateStr, taskId, false); return r && r.score != null ? r.score : null; }
+function setScore(dateStr, taskId, v) {
+  const r = recFor(dateStr, taskId, true);
+  if (v == null || v === '' || isNaN(v)) delete r.score; else r.score = Number(v);
+  save();
+}
+// 특정 할 일의 점수 추이 (날짜순)
+function scoreSeries(taskId) {
+  const out = [];
+  for (const ds in state.records) { const r = state.records[ds][taskId]; if (r && r.score != null) out.push({ date: ds, score: r.score }); }
+  return out.sort((a, b) => a.date < b.date ? -1 : 1);
+}
 function studiedMs(dateStr) {
   const day = state.records[dateStr]; if (!day) return 0;
   let sum = 0;
@@ -176,6 +188,7 @@ function renderTasks() {
     const tags = [`<span class="tag dur">${t.duration}분</span>`];
     if (t.exam) tags.push(`<span class="tag exam">모의고사 · ${t.exam.subject}</span>`);
     if (t.repeat !== 'none') tags.push(`<span class="tag repeat">${repeatLabel(t)}</span>`);
+    if (t.exam) { const sc = getScore(selectedDate, t.id); if (sc != null) tags.push(`<span class="tag score">점수 ${sc}</span>`); }
 
     li.innerHTML =
       `<div class="task-check ${done ? 'done' : ''}" style="${done ? `background:${t.color};` : ''}"></div>` +
@@ -335,6 +348,55 @@ function renderStats() {
       `<div class="sb-track"><div class="sb-fill" style="width:${Math.max(4, (g.ms / max) * 100)}%;background:${g.color}"></div></div>`;
     bars.appendChild(row);
   }
+  renderScoreTrends();
+}
+
+/* 모의고사 점수 추이 (할 일별, 전체 기간) */
+function renderScoreTrends() {
+  const wrap = $('scoreTrends'); wrap.innerHTML = '';
+  const examTasks = state.tasks.filter(t => t.exam);
+  let any = false;
+  for (const t of examTasks) {
+    const series = scoreSeries(t.id);
+    if (series.length === 0) continue;
+    any = true;
+    const scores = series.map(s => s.score);
+    const last = scores[scores.length - 1];
+    const prev = scores.length > 1 ? scores[scores.length - 2] : null;
+    const diff = prev != null ? last - prev : null;
+    const best = Math.max(...scores);
+    const card = document.createElement('div'); card.className = 'trend-card';
+    const diffHtml = diff == null ? '' :
+      `<span class="tr-diff ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff > 0 ? '▲' : diff < 0 ? '▼' : '–'} ${Math.abs(diff)}</span>`;
+    card.innerHTML =
+      `<div class="tr-head">` +
+        `<span class="tr-name"><span class="tr-dot" style="background:${t.color}"></span>${escapeHtml(t.title)}</span>` +
+        `<span class="tr-last">최근 <b>${last}</b>${diffHtml} · 최고 ${best} · ${series.length}회</span>` +
+      `</div>` +
+      sparkline(series, t.color);
+    wrap.appendChild(card);
+  }
+  $('trendsEmpty').classList.toggle('hidden', any);
+}
+// 점수 꺾은선(SVG)
+function sparkline(series, color) {
+  const W = 520, H = 96, PADX = 10, PADY = 16;
+  const scores = series.map(s => s.score);
+  const min = Math.min(...scores), max = Math.max(...scores);
+  const span = (max - min) || 1;
+  const n = series.length;
+  const x = i => n === 1 ? W / 2 : PADX + (i * (W - 2 * PADX)) / (n - 1);
+  const y = v => H - PADY - ((v - min) / span) * (H - 2 * PADY);
+  const pts = series.map((s, i) => `${x(i).toFixed(1)},${y(s.score).toFixed(1)}`);
+  const dots = series.map((s, i) =>
+    `<circle cx="${x(i).toFixed(1)}" cy="${y(s.score).toFixed(1)}" r="3.5" fill="${color}" />` +
+    `<text x="${x(i).toFixed(1)}" y="${(y(s.score) - 8).toFixed(1)}" class="tr-pt">${s.score}</text>`
+  ).join('');
+  const area = `${PADX},${H - PADY} ${pts.join(' ')} ${(n === 1 ? W / 2 : W - PADX)},${H - PADY}`;
+  return `<div class="tr-chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="spark">` +
+    `<polygon points="${area}" fill="${color}" opacity="0.10" />` +
+    `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />` +
+    dots + `</svg></div>`;
 }
 
 /* ---------- 뷰 전환 ---------- */
@@ -530,10 +592,48 @@ function openTimer(task) {
   $('timerTitle').textContent = task.title;
   $('ringFg').style.stroke = task.color;
   $('timerToggle').style.display = ''; $('timerDone').style.display = 'none';
+  $('timerEarly').style.display = 'none'; $('timerExtend').style.display = '';
   $('timerToggle').textContent = '시작';
-  $('timerState').textContent = isDone(selectedDate, task.id) ? '이미 완료됨' : '준비';
+  const done = isDone(selectedDate, task.id);
+  $('timerState').textContent = done ? '이미 완료됨' : '준비';
+  $('timerHint').innerHTML = task.exam
+    ? '모의고사 모드예요. 필요하면 <b>조기 종료</b>할 수 있어요. 시간이 부족하면 아래에서 연장하세요.'
+    : '시간을 임의로 줄일 수 없어요. 부족하면 아래에서 연장하세요. 멈췄다 이어서/처음부터도 가능해요.';
+  // 모의고사 & 이미 완료 → 점수 입력/수정 표시
+  if (task.exam && done) showScore(task); else hideScore();
   updateTimerUI();
   $('timerModal').classList.remove('hidden');
+}
+function showScore(task) {
+  const v = getScore(selectedDate, task.id);
+  $('scoreInput').value = v != null ? v : '';
+  $('timerScore').classList.remove('hidden');
+}
+function hideScore() { $('timerScore').classList.add('hidden'); }
+function saveScore() {
+  if (!timer) return;
+  const raw = $('scoreInput').value.trim();
+  setScore(selectedDate, timer.task.id, raw === '' ? null : parseFloat(raw));
+  renderAll();
+  toast(raw === '' ? '점수를 비웠어요' : '점수를 저장했어요');
+  closeTimer();
+}
+// 시간 연장 (모든 할 일)
+function extendTimer(min) {
+  if (!timer) return;
+  const ms = min * 60000;
+  timer.remaining += ms;
+  timer.total = Math.max(timer.total, timer.remaining);
+  if (timer.running) timer.deadline += ms;
+  updateTimerUI(); saveActive();
+  toast(`+${min}분 연장`);
+}
+// 조기 종료 (모의고사 모드 전용)
+function earlyFinish() {
+  if (!timer || !timer.task.exam) return;
+  if (timer.running) clearInterval(timer.tickId);
+  finishSegment(Date.now());  // 실제 진행한 시간만 기록
+  completeTimer();
 }
 function updateTimerUI() {
   const r = Math.max(0, timer.remaining);
@@ -554,6 +654,7 @@ function startTimer() {
   timer.running = true; timer.segStart = Date.now(); timer.deadline = Date.now() + timer.remaining;
   timer.tickId = setInterval(handleTick, 250);
   $('timerToggle').textContent = '일시정지'; $('timerState').textContent = '진행 중';
+  if (timer.task.exam) $('timerEarly').style.display = '';  // 모의고사는 조기 종료 가능
   saveActive();
 }
 function pauseTimer() {
@@ -571,20 +672,26 @@ function restartTimer() {
   if (timer.running) { clearInterval(timer.tickId); finishSegment(Date.now()); relWake(); }
   timer.running = false; timer.remaining = timer.total; timer.segStart = 0; timer.deadline = 0;
   updateTimerUI();
-  $('timerToggle').textContent = '시작'; $('timerState').textContent = '준비';
+  $('timerToggle').style.display = ''; $('timerToggle').textContent = '시작'; $('timerState').textContent = '준비';
+  $('timerEarly').style.display = 'none'; $('timerDone').style.display = 'none';
+  $('timerExtend').style.display = ''; hideScore();
   saveActive(); renderTimetable();
 }
 function completeTimer() {
   clearInterval(timer.tickId); timer.running = false; relWake();
   setDone(selectedDate, timer.task.id, true);
-  $('timerToggle').style.display = 'none'; $('timerDone').style.display = '';
+  $('timerToggle').style.display = 'none'; $('timerEarly').style.display = 'none'; $('timerExtend').style.display = 'none';
   $('timerState').textContent = '완료!';
-  playChime(); buzz(); clearActive(); renderAll();
+  playChime(); buzz(); clearActive();
+  if (timer.task.exam) { $('timerDone').style.display = 'none'; showScore(timer.task); setTimeout(() => $('scoreInput').focus(), 120); }
+  else { $('timerDone').style.display = ''; }
+  renderAll();
 }
 function closeTimer() {
   if (timer && timer.running) { clearInterval(timer.tickId); finishSegment(Date.now()); relWake(); }
   clearActive(); timer = null;
-  $('timerToggle').style.display = '';
+  $('timerToggle').style.display = ''; $('timerEarly').style.display = 'none';
+  $('timerExtend').style.display = ''; hideScore();
   $('timerModal').classList.add('hidden'); renderAll();
 }
 
@@ -598,6 +705,10 @@ function restoreActive() {
   timer = { task, total: a.total, remaining: a.remaining, running: false, deadline: a.deadline, segStart: 0, tickId: null };
   $('timerTitle').textContent = task.title; $('ringFg').style.stroke = task.color;
   $('timerToggle').style.display = ''; $('timerDone').style.display = 'none';
+  $('timerEarly').style.display = 'none'; $('timerExtend').style.display = ''; hideScore();
+  $('timerHint').innerHTML = task.exam
+    ? '모의고사 모드예요. 필요하면 <b>조기 종료</b>할 수 있어요. 시간이 부족하면 아래에서 연장하세요.'
+    : '시간을 임의로 줄일 수 없어요. 부족하면 아래에서 연장하세요. 멈췄다 이어서/처음부터도 가능해요.';
 
   if (a.running) {
     const left = a.deadline - Date.now();
@@ -606,8 +717,9 @@ function restoreActive() {
       if (a.segStart) addSession(a.date, task.id, a.segStart, a.deadline);
       setDone(a.date, task.id, true);
       timer.remaining = 0; updateTimerUI();
-      $('timerToggle').style.display = 'none'; $('timerDone').style.display = '';
+      $('timerToggle').style.display = 'none'; $('timerExtend').style.display = 'none';
       $('timerState').textContent = '완료!'; clearActive();
+      if (task.exam) { showScore(task); } else { $('timerDone').style.display = ''; }
       $('timerModal').classList.remove('hidden');
       setTimeout(() => toast('자리를 비운 사이 타이머가 완료됐어요'), 300);
     } else {
@@ -615,6 +727,7 @@ function restoreActive() {
       timer.remaining = left; timer.running = true; timer.segStart = a.segStart || Date.now();
       timer.tickId = setInterval(handleTick, 250); reqWake();
       $('timerToggle').textContent = '일시정지'; $('timerState').textContent = '진행 중';
+      if (task.exam) $('timerEarly').style.display = '';
       updateTimerUI(); $('timerModal').classList.remove('hidden');
     }
   } else {
@@ -726,6 +839,10 @@ $('timerToggle').addEventListener('click', () => { timer.running ? pauseTimer() 
 $('timerRestart').addEventListener('click', restartTimer);
 $('timerClose').addEventListener('click', closeTimer);
 $('timerDone').addEventListener('click', closeTimer);
+$('timerEarly').addEventListener('click', earlyFinish);
+$('scoreSave').addEventListener('click', saveScore);
+$('scoreInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveScore(); });
+document.querySelectorAll('#timerExtend button').forEach(b => b.addEventListener('click', () => extendTimer(parseInt(b.dataset.min, 10))));
 
 $('settingsBtn').addEventListener('click', openSettings);
 $('settingsClose').addEventListener('click', () => $('settingsModal').classList.add('hidden'));

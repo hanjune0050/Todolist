@@ -352,3 +352,38 @@ h1, h2, h3 { margin: 0; }
 .sep { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .field .muted.small { margin: 2px 0 4px; }
+
+/* ===== 점수 태그 ===== */
+.tag.score { background: #efeafc; color: #6b5bc0; }
+:root[data-theme="dark"] .tag.score { background: #2b2650; color: #b9adf0; }
+
+/* ===== 타이머 연장 / 조기종료 / 점수 ===== */
+.timer-extend { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.timer-extend .ext-label { font-size: 12px; font-weight: 700; color: var(--muted); }
+.timer-extend button {
+  font: inherit; font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--field); color: var(--text); cursor: pointer;
+}
+.timer-extend button:active { transform: scale(0.95); }
+.timer-score { padding: 4px 18px 20px; text-align: left; }
+.timer-score > label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.score-row { display: flex; gap: 8px; }
+.score-row input {
+  flex: 1; font: inherit; font-size: 18px; font-weight: 700; text-align: center;
+  padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--field); color: var(--text);
+  -webkit-appearance: none; appearance: none;
+}
+.score-row input:focus { outline: none; border-color: var(--primary); }
+
+/* ===== 점수 추이 ===== */
+.trend-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 6px; margin-bottom: 12px; background: var(--item); }
+.tr-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.tr-name { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 7px; }
+.tr-dot { width: 11px; height: 11px; border-radius: 4px; display: inline-block; }
+.tr-last { font-size: 13px; color: var(--muted); font-weight: 600; }
+.tr-last b { color: var(--text); font-size: 16px; }
+.tr-diff { margin-left: 6px; font-weight: 800; }
+.tr-diff.up { color: #3f9a72; } .tr-diff.down { color: #c0574f; }
+.tr-chart { width: 100%; }
+.spark { width: 100%; height: auto; display: block; overflow: visible; }
+.tr-pt { font-size: 11px; fill: var(--muted); text-anchor: middle; font-weight: 700; }

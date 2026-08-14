@@ -92,6 +92,13 @@
       <div id="statsEmpty" class="empty">
         <p>아직 타이머로 공부한 기록이 없어요.<br />할 일을 눌러 타이머를 돌리면 여기에 쌓입니다.</p>
       </div>
+
+      <h3 class="stats-h" style="margin-top:26px">모의고사 점수 추이</h3>
+      <p class="muted small" style="margin:-6px 0 12px">할 일별 · 전체 기간 · 날짜순</p>
+      <div id="scoreTrends"></div>
+      <div id="trendsEmpty" class="empty">
+        <p>아직 기록된 점수가 없어요.<br />모의고사 모드 할 일을 끝내면 점수를 입력할 수 있어요.</p>
+      </div>
     </section>
   </div>
 
@@ -191,12 +198,26 @@
             <div id="timerState" class="timer-state">준비</div>
           </div>
         </div>
-        <p class="timer-hint">시간을 임의로 줄일 수 없어요. 멈췄다가 다시 이어서 하거나, 처음부터 다시 시작할 수 있어요.<br />앱을 잠깐 나갔다 와도 시간이 이어집니다.</p>
+        <p class="timer-hint" id="timerHint"></p>
+        <div class="timer-extend" id="timerExtend">
+          <span class="ext-label">연장</span>
+          <button type="button" data-min="1">+1분</button>
+          <button type="button" data-min="5">+5분</button>
+          <button type="button" data-min="30">+30분</button>
+        </div>
       </div>
       <div class="timer-controls">
         <button id="timerRestart" class="btn ghost">처음부터</button>
         <button id="timerToggle" class="btn primary big">시작</button>
+        <button id="timerEarly" class="btn ok" style="display:none">조기 종료</button>
         <button id="timerDone" class="btn ok" style="display:none">완료 처리</button>
+      </div>
+      <div class="timer-score hidden" id="timerScore">
+        <label for="scoreInput">모의고사 점수</label>
+        <div class="score-row">
+          <input id="scoreInput" type="number" min="0" max="200" step="1" inputmode="numeric" placeholder="예: 88" />
+          <button id="scoreSave" class="btn primary">저장</button>
+        </div>
       </div>
     </div>
   </div>
