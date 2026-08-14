@@ -108,15 +108,29 @@ function addSession(dateStr, taskId, start, end) {
 function getScore(dateStr, taskId) { const r = recFor(dateStr, taskId, false); return r && r.score != null ? r.score : null; }
 function setScore(dateStr, taskId, v) {
   const r = recFor(dateStr, taskId, true);
-  if (v == null || v === '' || isNaN(v)) {
-    delete r.score;
-    // 점수만 있던 빈 기록이면 정리
-    if (!r.done && (!r.sessions || r.sessions.length === 0)) {
-      delete state.records[dateStr][taskId];
-      if (Object.keys(state.records[dateStr]).length === 0) delete state.records[dateStr];
-    }
-  } else r.score = Number(v);
+  if (v == null || v === '' || isNaN(v)) { delete r.score; maybeCleanRecord(dateStr, taskId); }
+  else r.score = Number(v);
   save();
+}
+// 진행 중(일시정지) 남은 시간 — 할 일별로 저장해서 병행 가능
+function getLeft(dateStr, taskId) { const r = recFor(dateStr, taskId, false); return r && r.left != null ? r.left : null; }
+function setLeft(dateStr, taskId, ms) { recFor(dateStr, taskId, true).left = ms; save(); }
+function clearLeft(dateStr, taskId) {
+  const r = recFor(dateStr, taskId, false); if (!r) return;
+  delete r.left; maybeCleanRecord(dateStr, taskId); save();
+}
+// 아무 내용도 없는 빈 기록이면 정리
+function maybeCleanRecord(dateStr, taskId) {
+  const day = state.records[dateStr]; if (!day) return;
+  const r = day[taskId]; if (!r) return;
+  if (!r.done && (!r.sessions || r.sessions.length === 0) && r.score == null && r.left == null) {
+    delete day[taskId];
+    if (Object.keys(day).length === 0) delete state.records[dateStr];
+  }
+}
+function fmtClock(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 // 특정 할 일의 점수 추이 (날짜순)
 function scoreSeries(taskId) {
@@ -216,6 +230,7 @@ function renderTasks() {
     if (t.exam) tags.push(`<span class="tag exam">모의고사 · ${t.exam.subject}</span>`);
     if (t.repeat !== 'none') tags.push(`<span class="tag repeat">${repeatLabel(t)}</span>`);
     if (t.exam) { const sc = getScore(selectedDate, t.id); if (sc != null) tags.push(`<span class="tag score">점수 ${sc}</span>`); }
+    if (!done) { const lf = getLeft(selectedDate, t.id); if (lf != null && lf > 0) tags.push(`<span class="tag left">이어서 ${fmtClock(lf)}</span>`); }
 
     li.innerHTML =
       `<div class="task-check ${done ? 'done' : ''}" style="${done ? `background:${t.color};` : ''}"></div>` +
@@ -679,15 +694,19 @@ function saveActive() {
 function clearActive() { localStorage.removeItem(ACTIVE_KEY); }
 
 function openTimer(task) {
-  const total = task.duration * 60 * 1000;
-  timer = { task, remaining: total, total, running: false, deadline: 0, segStart: 0, tickId: null };
+  const baseTotal = task.duration * 60 * 1000;
+  const done = isDone(selectedDate, task.id);
+  const left = getLeft(selectedDate, task.id);
+  const resuming = !done && left != null && left > 0;      // 일시정지해 둔 걸 이어서
+  const remaining = resuming ? left : baseTotal;
+  const total = Math.max(baseTotal, remaining);
+  timer = { task, remaining, total, running: false, deadline: 0, segStart: 0, tickId: null };
   $('timerTitle').textContent = task.title;
   $('ringFg').style.stroke = task.color;
   $('timerToggle').style.display = ''; $('timerDone').style.display = 'none';
   $('timerEarly').style.display = 'none'; $('timerExtend').style.display = '';
-  $('timerToggle').textContent = '시작';
-  const done = isDone(selectedDate, task.id);
-  $('timerState').textContent = done ? '이미 완료됨' : '준비';
+  $('timerToggle').textContent = resuming ? '이어서' : '시작';
+  $('timerState').textContent = done ? '이미 완료됨' : (resuming ? '일시정지 · 이어서 하기' : '준비');
   $('timerHint').innerHTML = task.exam
     ? '모의고사 모드예요. 필요하면 <b>조기 종료</b>할 수 있어요. 시간이 부족하면 아래에서 연장하세요.'
     : '시간을 임의로 줄일 수 없어요. 부족하면 아래에서 연장하세요. 멈췄다 이어서/처음부터도 가능해요.';
@@ -754,23 +773,27 @@ function pauseTimer() {
   clearInterval(timer.tickId);
   timer.remaining = Math.max(0, timer.deadline - Date.now());
   timer.running = false; finishSegment(Date.now()); relWake();
-  $('timerToggle').textContent = '이어서'; $('timerState').textContent = '일시정지';
-  saveActive(); renderTimetable();
+  $('timerToggle').textContent = '이어서'; $('timerState').textContent = '일시정지 · 이어서 하기';
+  setLeft(selectedDate, timer.task.id, timer.remaining);  // 남은 시간 저장(병행 가능)
+  clearActive(); renderAll();
 }
 function finishSegment(endMs) {
   if (timer.segStart) { addSession(selectedDate, timer.task.id, timer.segStart, endMs); timer.segStart = 0; }
 }
 function restartTimer() {
   if (timer.running) { clearInterval(timer.tickId); finishSegment(Date.now()); relWake(); }
-  timer.running = false; timer.remaining = timer.total; timer.segStart = 0; timer.deadline = 0;
+  timer.running = false; timer.remaining = timer.total = timer.task.duration * 60 * 1000;
+  timer.segStart = 0; timer.deadline = 0;
+  clearLeft(selectedDate, timer.task.id);   // 진행 상태 초기화
   updateTimerUI();
   $('timerToggle').style.display = ''; $('timerToggle').textContent = '시작'; $('timerState').textContent = '준비';
   $('timerEarly').style.display = 'none'; $('timerDone').style.display = 'none';
   $('timerExtend').style.display = ''; hideScore();
-  saveActive(); renderTimetable();
+  clearActive(); renderAll();
 }
 function completeTimer() {
   clearInterval(timer.tickId); timer.running = false; relWake();
+  clearLeft(selectedDate, timer.task.id);
   setDone(selectedDate, timer.task.id, true);
   $('timerToggle').style.display = 'none'; $('timerEarly').style.display = 'none'; $('timerExtend').style.display = 'none';
   $('timerState').textContent = '완료!';
@@ -780,7 +803,12 @@ function completeTimer() {
   renderAll();
 }
 function closeTimer() {
-  if (timer && timer.running) { clearInterval(timer.tickId); finishSegment(Date.now()); relWake(); }
+  if (timer) {
+    if (timer.running) { clearInterval(timer.tickId); timer.remaining = Math.max(0, timer.deadline - Date.now()); finishSegment(Date.now()); relWake(); }
+    // 완료되지 않았고 남은 시간이 있으면 진행 상태 저장(다음에 이어서)
+    if (!isDone(selectedDate, timer.task.id) && timer.remaining > 0 && timer.remaining < timer.task.duration * 60 * 1000)
+      setLeft(selectedDate, timer.task.id, timer.remaining);
+  }
   clearActive(); timer = null;
   $('timerToggle').style.display = ''; $('timerEarly').style.display = 'none';
   $('timerExtend').style.display = ''; hideScore();
@@ -807,6 +835,7 @@ function restoreActive() {
     if (left <= 0) {
       // 자리를 비운 사이 완료됨 → 그동안 공부한 구간 기록 + 완료 처리
       if (a.segStart) addSession(a.date, task.id, a.segStart, a.deadline);
+      clearLeft(a.date, task.id);
       setDone(a.date, task.id, true);
       timer.remaining = 0; updateTimerUI();
       $('timerToggle').style.display = 'none'; $('timerExtend').style.display = 'none';

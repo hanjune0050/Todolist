@@ -1,7 +1,7 @@
 /* 오프라인 캐시용 서비스워커.
  * 앱 파일을 캐시에 저장해 두어 네트워크 없이도 실행됩니다.
  * 파일을 수정하면 아래 CACHE 버전을 올리세요 (예: v1 -> v2). */
-const CACHE = 'study-timer-v9';
+const CACHE = 'study-timer-v10';
 const ASSETS = [
   './',
   './index.html',

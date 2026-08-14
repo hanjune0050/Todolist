@@ -356,6 +356,9 @@ h1, h2, h3 { margin: 0; }
 /* ===== 점수 태그 ===== */
 .tag.score { background: #efeafc; color: #6b5bc0; }
 :root[data-theme="dark"] .tag.score { background: #2b2650; color: #b9adf0; }
+/* 이어서(진행 중) 태그 */
+.tag.left { background: #f7edda; color: #a9772a; }
+:root[data-theme="dark"] .tag.left { background: #352c1c; color: #d8ad64; }
 
 /* ===== 타이머 연장 / 조기종료 / 점수 ===== */
 .timer-extend { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
