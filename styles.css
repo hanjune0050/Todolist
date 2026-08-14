@@ -387,3 +387,10 @@ h1, h2, h3 { margin: 0; }
 .tr-chart { width: 100%; }
 .spark { width: 100%; height: auto; display: block; overflow: visible; }
 .tr-pt { font-size: 11px; fill: var(--muted); text-anchor: middle; font-weight: 700; }
+.stats-h-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.small-btn { padding: 8px 14px; font-size: 13px; }
+.tr-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.tr-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--soft); border-radius: 999px; padding: 3px 5px 3px 10px; }
+.tr-chip b { color: var(--text); font-weight: 800; }
+.tr-del { border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; line-height: 1; padding: 3px 5px; border-radius: 50%; }
+.tr-del:active { transform: scale(0.9); }

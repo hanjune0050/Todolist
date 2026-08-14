@@ -107,7 +107,14 @@ function addSession(dateStr, taskId, start, end) {
 function getScore(dateStr, taskId) { const r = recFor(dateStr, taskId, false); return r && r.score != null ? r.score : null; }
 function setScore(dateStr, taskId, v) {
   const r = recFor(dateStr, taskId, true);
-  if (v == null || v === '' || isNaN(v)) delete r.score; else r.score = Number(v);
+  if (v == null || v === '' || isNaN(v)) {
+    delete r.score;
+    // 점수만 있던 빈 기록이면 정리
+    if (!r.done && (!r.sessions || r.sessions.length === 0)) {
+      delete state.records[dateStr][taskId];
+      if (Object.keys(state.records[dateStr]).length === 0) delete state.records[dateStr];
+    }
+  } else r.score = Number(v);
   save();
 }
 // 특정 할 일의 점수 추이 (날짜순)
@@ -368,15 +375,47 @@ function renderScoreTrends() {
     const card = document.createElement('div'); card.className = 'trend-card';
     const diffHtml = diff == null ? '' :
       `<span class="tr-diff ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff > 0 ? '▲' : diff < 0 ? '▼' : '–'} ${Math.abs(diff)}</span>`;
+    const chips = series.map(s => {
+      const d = parse(s.date);
+      return `<span class="tr-chip"><b>${s.score}</b> ${d.getMonth() + 1}/${d.getDate()}` +
+        `<button class="tr-del" data-task="${t.id}" data-date="${s.date}" aria-label="삭제">✕</button></span>`;
+    }).join('');
     card.innerHTML =
       `<div class="tr-head">` +
         `<span class="tr-name"><span class="tr-dot" style="background:${t.color}"></span>${escapeHtml(t.title)}</span>` +
         `<span class="tr-last">최근 <b>${last}</b>${diffHtml} · 최고 ${best} · ${series.length}회</span>` +
       `</div>` +
-      sparkline(series, t.color);
+      sparkline(series, t.color) +
+      `<div class="tr-chips">${chips}</div>`;
     wrap.appendChild(card);
   }
   $('trendsEmpty').classList.toggle('hidden', any);
+  // 점수 삭제
+  wrap.querySelectorAll('.tr-del').forEach(btn => btn.addEventListener('click', () => {
+    setScore(btn.dataset.date, btn.dataset.task, null);
+    renderAll(); renderStats();
+  }));
+}
+
+/* 점수 추가 모달 */
+function openScoreModal() {
+  const exams = state.tasks.filter(t => t.exam);
+  if (exams.length === 0) { toast('먼저 모의고사 모드 할 일을 만들어 주세요'); return; }
+  const sel = $('smTask');
+  sel.innerHTML = exams.map(t => `<option value="${t.id}">${escapeHtml(t.title)} (${t.exam.subject})</option>`).join('');
+  $('smDate').value = selectedDate;
+  $('smScore').value = '';
+  $('scoreModal').classList.remove('hidden');
+  setTimeout(() => $('smScore').focus(), 60);
+}
+function saveScoreEntry() {
+  const taskId = $('smTask').value, date = $('smDate').value, raw = $('smScore').value.trim();
+  if (!taskId) return toast('할 일을 선택하세요');
+  if (!date) return toast('날짜를 선택하세요');
+  if (raw === '' || isNaN(parseFloat(raw))) return toast('점수를 입력하세요');
+  setScore(date, taskId, parseFloat(raw));
+  $('scoreModal').classList.add('hidden');
+  renderAll(); renderStats(); toast('점수를 추가했어요');
 }
 // 점수 꺾은선(SVG)
 function sparkline(series, color) {
@@ -858,6 +897,13 @@ $('importFile').addEventListener('change', (e) => {
   const r = new FileReader(); r.onload = () => importData(String(r.result)); r.readAsText(f); e.target.value = '';
 });
 $('clearBtn').addEventListener('click', clearData);
+
+$('addScoreBtn').addEventListener('click', openScoreModal);
+$('scoreModalClose').addEventListener('click', () => $('scoreModal').classList.add('hidden'));
+$('smCancel').addEventListener('click', () => $('scoreModal').classList.add('hidden'));
+$('smSave').addEventListener('click', saveScoreEntry);
+$('scoreModal').addEventListener('click', (e) => { if (e.target === $('scoreModal')) $('scoreModal').classList.add('hidden'); });
+$('smScore').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveScoreEntry(); });
 
 /* 앱이 다시 보일 때: 진행 중이면 시간 재계산 + 화면깨우기 재요청 */
 document.addEventListener('visibilitychange', () => {
