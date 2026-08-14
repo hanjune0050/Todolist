@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>공부 타이머</title>
+  <meta name="theme-color" content="#3b82f6" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="공부 타이머" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">📚 공부 타이머</h1>
+    <div class="topbar-actions">
+      <button id="todayBtn" class="btn ghost">오늘</button>
+      <button id="addBtn" class="btn primary">+ 할 일</button>
+    </div>
+  </header>
+
+  <!-- 주간 캘린더 -->
+  <section class="week-section">
+    <div class="week-nav">
+      <button id="prevWeek" class="btn icon" aria-label="이전 주">‹</button>
+      <span id="weekLabel" class="week-label"></span>
+      <button id="nextWeek" class="btn icon" aria-label="다음 주">›</button>
+    </div>
+    <div id="weekGrid" class="week-grid"></div>
+  </section>
+
+  <!-- 본문: 왼쪽 할 일 목록 / 오른쪽 타임테이블 -->
+  <main class="content">
+    <section class="panel tasks-panel">
+      <div class="panel-head">
+        <h2 id="dayTitle">할 일</h2>
+        <span id="dayStat" class="day-stat"></span>
+      </div>
+      <ul id="taskList" class="task-list"></ul>
+      <div id="taskEmpty" class="empty">
+        <div class="empty-emoji">🗒️</div>
+        <p>이 날짜에 등록된 할 일이 없어요.<br />오른쪽 위 <b>+ 할 일</b>로 추가하세요.</p>
+      </div>
+    </section>
+
+    <section class="panel timetable-panel">
+      <div class="panel-head">
+        <h2>타임테이블</h2>
+        <span class="muted">08:30 – 24:00</span>
+      </div>
+      <div id="timetable" class="timetable"></div>
+    </section>
+  </main>
+
+  <!-- 할 일 추가/수정 모달 -->
+  <div id="taskModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="taskModalTitle">할 일 추가</h3>
+        <button class="btn icon" id="taskModalClose" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span>제목</span>
+          <input id="fTitle" type="text" maxlength="60" placeholder="예: 수학 모의고사 3회" />
+        </label>
+
+        <label class="field toggle-field">
+          <span>모의고사 모드</span>
+          <input id="fExam" type="checkbox" class="switch" />
+        </label>
+
+        <div id="examBox" class="exam-box hidden">
+          <div class="seg" id="examSubjects">
+            <button type="button" data-subj="국어">국어 80</button>
+            <button type="button" data-subj="수학">수학 100</button>
+            <button type="button" data-subj="영어">영어 50</button>
+            <button type="button" data-subj="탐구">탐구 30</button>
+          </div>
+          <label class="check-row">
+            <input id="fMarking" type="checkbox" />
+            <span>마킹시간 포함 (국어·수학 −3분, 탐구 −1분)</span>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span>소요 시간(분)</span>
+            <input id="fDuration" type="number" min="1" max="600" step="1" value="25" inputmode="numeric" />
+          </label>
+          <div class="field">
+            <span>색상</span>
+            <div id="colorPicker" class="color-picker"></div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span>반복</span>
+            <select id="fRepeat">
+              <option value="none">반복 없음</option>
+              <option value="daily">매일</option>
+              <option value="weekly">매주</option>
+            </select>
+          </label>
+          <label class="field">
+            <span id="startLabel">날짜</span>
+            <input id="fStart" type="date" />
+          </label>
+        </div>
+
+        <label class="field" id="endField" style="display:none">
+          <span>종료 날짜</span>
+          <input id="fEnd" type="date" />
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button id="deleteTaskBtn" class="btn danger" style="display:none">삭제</button>
+        <div class="spacer"></div>
+        <button id="cancelTaskBtn" class="btn ghost">취소</button>
+        <button id="saveTaskBtn" class="btn primary">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 타이머 모달 -->
+  <div id="timerModal" class="modal-overlay hidden">
+    <div class="modal timer-modal">
+      <div class="modal-head">
+        <h3 id="timerTitle">타이머</h3>
+        <button class="btn icon" id="timerClose" aria-label="닫기">✕</button>
+      </div>
+      <div class="timer-body">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 200 200" class="ring">
+            <circle cx="100" cy="100" r="88" class="ring-bg" />
+            <circle cx="100" cy="100" r="88" id="ringFg" class="ring-fg" />
+          </svg>
+          <div class="ring-center">
+            <div id="timeText" class="time-text">25:00</div>
+            <div id="timerState" class="timer-state">준비</div>
+          </div>
+        </div>
+        <p class="timer-hint">시간을 임의로 줄일 수 없어요. 멈췄다가 다시 이어서 하거나, 처음부터 다시 시작할 수 있어요.</p>
+      </div>
+      <div class="timer-controls">
+        <button id="timerRestart" class="btn ghost">처음부터</button>
+        <button id="timerToggle" class="btn primary big">시작</button>
+        <button id="timerDone" class="btn ok" style="display:none">완료 처리</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
