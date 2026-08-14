@@ -658,6 +658,7 @@ function cancelFromHere() {
  * ========================================================================= */
 let timer = null;          // { task, remaining, total, running, deadline, segStart, tickId }
 let audioCtx = null, wakeLock = null;
+const TIMER_HINT = '멈췄다 이어서 하거나 처음부터 다시 시작할 수 있어요.<br>필요하면 <b>조기 종료</b>, 시간이 부족하면 <b>연장(＋)</b>하세요.';
 
 function ensureAudio() {
   try {
@@ -707,9 +708,7 @@ function openTimer(task) {
   $('timerEarly').style.display = 'none'; $('timerExtend').style.display = '';
   $('timerToggle').textContent = resuming ? '이어서' : '시작';
   $('timerState').textContent = done ? '이미 완료됨' : (resuming ? '일시정지 · 이어서 하기' : '준비');
-  $('timerHint').innerHTML = task.exam
-    ? '모의고사 모드예요. 필요하면 <b>조기 종료</b>할 수 있어요. 시간이 부족하면 아래에서 연장하세요.'
-    : '시간을 임의로 줄일 수 없어요. 부족하면 아래에서 연장하세요. 멈췄다 이어서/처음부터도 가능해요.';
+  $('timerHint').innerHTML = TIMER_HINT;
   // 모의고사 & 이미 완료 → 점수 입력/수정 표시
   if (task.exam && done) showScore(task); else hideScore();
   updateTimerUI();
@@ -739,9 +738,9 @@ function extendTimer(min) {
   updateTimerUI(); saveActive();
   toast(`+${min}분 연장`);
 }
-// 조기 종료 (모의고사 모드 전용)
+// 조기 종료 (모든 할 일)
 function earlyFinish() {
-  if (!timer || !timer.task.exam) return;
+  if (!timer) return;
   if (timer.running) clearInterval(timer.tickId);
   finishSegment(Date.now());  // 실제 진행한 시간만 기록
   completeTimer();
@@ -765,7 +764,7 @@ function startTimer() {
   timer.running = true; timer.segStart = Date.now(); timer.deadline = Date.now() + timer.remaining;
   timer.tickId = setInterval(handleTick, 250);
   $('timerToggle').textContent = '일시정지'; $('timerState').textContent = '진행 중';
-  if (timer.task.exam) $('timerEarly').style.display = '';  // 모의고사는 조기 종료 가능
+  $('timerEarly').style.display = '';  // 모든 할 일 조기 종료 가능
   saveActive();
 }
 function pauseTimer() {
@@ -826,9 +825,7 @@ function restoreActive() {
   $('timerTitle').textContent = task.title; $('ringFg').style.stroke = task.color;
   $('timerToggle').style.display = ''; $('timerDone').style.display = 'none';
   $('timerEarly').style.display = 'none'; $('timerExtend').style.display = ''; hideScore();
-  $('timerHint').innerHTML = task.exam
-    ? '모의고사 모드예요. 필요하면 <b>조기 종료</b>할 수 있어요. 시간이 부족하면 아래에서 연장하세요.'
-    : '시간을 임의로 줄일 수 없어요. 부족하면 아래에서 연장하세요. 멈췄다 이어서/처음부터도 가능해요.';
+  $('timerHint').innerHTML = TIMER_HINT;
 
   if (a.running) {
     const left = a.deadline - Date.now();
@@ -848,7 +845,7 @@ function restoreActive() {
       timer.remaining = left; timer.running = true; timer.segStart = a.segStart || Date.now();
       timer.tickId = setInterval(handleTick, 250); reqWake();
       $('timerToggle').textContent = '일시정지'; $('timerState').textContent = '진행 중';
-      if (task.exam) $('timerEarly').style.display = '';
+      $('timerEarly').style.display = '';
       updateTimerUI(); $('timerModal').classList.remove('hidden');
     }
   } else {
