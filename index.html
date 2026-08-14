@@ -17,46 +17,85 @@
 <body>
   <header class="topbar">
     <h1 class="brand">📚 공부 타이머</h1>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-view="main">할 일</button>
+      <button class="tab" data-view="month">월간</button>
+      <button class="tab" data-view="stats">통계</button>
+    </nav>
     <div class="topbar-actions">
       <button id="todayBtn" class="btn ghost">오늘</button>
       <button id="addBtn" class="btn primary">+ 할 일</button>
+      <button id="settingsBtn" class="btn icon" aria-label="설정" title="설정">⚙️</button>
     </div>
   </header>
 
-  <!-- 주간 캘린더 -->
-  <section class="week-section">
-    <div class="week-nav">
-      <button id="prevWeek" class="btn icon" aria-label="이전 주">‹</button>
-      <span id="weekLabel" class="week-label"></span>
-      <button id="nextWeek" class="btn icon" aria-label="다음 주">›</button>
-    </div>
-    <div id="weekGrid" class="week-grid"></div>
-  </section>
-
-  <!-- 본문: 왼쪽 할 일 목록 / 오른쪽 타임테이블 -->
-  <main class="content">
-    <section class="panel tasks-panel">
-      <div class="panel-head">
-        <h2 id="dayTitle">할 일</h2>
-        <span id="dayStat" class="day-stat"></span>
+  <!-- ===== 할 일 뷰 (주간 캘린더 + 목록 + 타임테이블) ===== -->
+  <div id="view-main" class="view">
+    <section class="week-section">
+      <div class="week-nav">
+        <button id="prevWeek" class="btn icon" aria-label="이전 주">‹</button>
+        <span id="weekLabel" class="week-label"></span>
+        <button id="nextWeek" class="btn icon" aria-label="다음 주">›</button>
       </div>
-      <ul id="taskList" class="task-list"></ul>
-      <div id="taskEmpty" class="empty">
-        <div class="empty-emoji">🗒️</div>
-        <p>이 날짜에 등록된 할 일이 없어요.<br />오른쪽 위 <b>+ 할 일</b>로 추가하세요.</p>
-      </div>
+      <div id="weekGrid" class="week-grid"></div>
     </section>
 
-    <section class="panel timetable-panel">
-      <div class="panel-head">
-        <h2>타임테이블</h2>
-        <span class="muted">08:30 – 24:00</span>
-      </div>
-      <div id="timetable" class="timetable"></div>
-    </section>
-  </main>
+    <main class="content">
+      <section class="panel tasks-panel">
+        <div class="panel-head">
+          <h2 id="dayTitle">할 일</h2>
+          <span id="dayStat" class="day-stat"></span>
+        </div>
+        <ul id="taskList" class="task-list"></ul>
+        <div id="taskEmpty" class="empty">
+          <div class="empty-emoji">🗒️</div>
+          <p>이 날짜에 등록된 할 일이 없어요.<br />오른쪽 위 <b>+ 할 일</b>로 추가하세요.</p>
+        </div>
+      </section>
 
-  <!-- 할 일 추가/수정 모달 -->
+      <section class="panel timetable-panel">
+        <div class="panel-head">
+          <h2>타임테이블</h2>
+          <span class="muted">08:30 – 24:00</span>
+        </div>
+        <div id="timetable" class="timetable"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== 월간 뷰 ===== -->
+  <div id="view-month" class="view hidden">
+    <section class="month-section panel">
+      <div class="week-nav">
+        <button id="prevMonth" class="btn icon" aria-label="이전 달">‹</button>
+        <span id="monthLabel" class="week-label"></span>
+        <button id="nextMonth" class="btn icon" aria-label="다음 달">›</button>
+      </div>
+      <div class="month-dow" id="monthDow"></div>
+      <div id="monthGrid" class="month-grid"></div>
+      <p class="muted center">날짜를 누르면 그 날의 할 일로 이동합니다. 초록색 = 그 날 할 일 전부 완료.</p>
+    </section>
+  </div>
+
+  <!-- ===== 통계 뷰 ===== -->
+  <div id="view-stats" class="view hidden">
+    <section class="stats-section panel">
+      <div class="stats-tabs" id="statsTabs">
+        <button class="stab active" data-range="week">이번 주</button>
+        <button class="stab" data-range="month">이번 달</button>
+        <button class="stab" data-range="all">전체</button>
+      </div>
+      <div class="stats-total" id="statsTotal"></div>
+      <h3 class="stats-h">과목 · 할 일별 공부 시간</h3>
+      <div id="statsBars"></div>
+      <div id="statsEmpty" class="empty">
+        <div class="empty-emoji">📊</div>
+        <p>아직 타이머로 공부한 기록이 없어요.<br />할 일을 눌러 타이머를 돌리면 여기에 쌓입니다.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== 할 일 추가/수정 모달 ===== -->
   <div id="taskModal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-head">
@@ -127,7 +166,7 @@
     </div>
   </div>
 
-  <!-- 타이머 모달 -->
+  <!-- ===== 타이머 모달 ===== -->
   <div id="timerModal" class="modal-overlay hidden">
     <div class="modal timer-modal">
       <div class="modal-head">
@@ -145,7 +184,7 @@
             <div id="timerState" class="timer-state">준비</div>
           </div>
         </div>
-        <p class="timer-hint">시간을 임의로 줄일 수 없어요. 멈췄다가 다시 이어서 하거나, 처음부터 다시 시작할 수 있어요.</p>
+        <p class="timer-hint">시간을 임의로 줄일 수 없어요. 멈췄다가 다시 이어서 하거나, 처음부터 다시 시작할 수 있어요.<br />앱을 잠깐 나갔다 와도 시간이 이어집니다.</p>
       </div>
       <div class="timer-controls">
         <button id="timerRestart" class="btn ghost">처음부터</button>
@@ -154,6 +193,50 @@
       </div>
     </div>
   </div>
+
+  <!-- ===== 설정 모달 ===== -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>설정</h3>
+        <button class="btn icon" id="settingsClose" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field toggle-field">
+          <span>🌙 다크 모드</span>
+          <input id="setDark" type="checkbox" class="switch" />
+        </label>
+        <label class="field toggle-field">
+          <span>🔔 완료음 · 진동</span>
+          <input id="setSound" type="checkbox" class="switch" />
+        </label>
+
+        <hr class="sep" />
+        <div class="field">
+          <span>데이터 백업 / 복원</span>
+          <p class="muted small">모든 기록은 이 기기에만 저장됩니다. 사파리 데이터를 지우기 전에 백업해 두세요.</p>
+          <div class="btn-row">
+            <button id="exportBtn" class="btn">⬇️ 내보내기(파일)</button>
+            <button id="copyBtn" class="btn">📋 JSON 복사</button>
+            <button id="importBtn" class="btn">⬆️ 가져오기(파일)</button>
+          </div>
+        </div>
+
+        <hr class="sep" />
+        <div class="field">
+          <span>초기화</span>
+          <div class="btn-row">
+            <button id="clearBtn" class="btn danger">모든 데이터 삭제</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <div class="spacer"></div>
+        <button id="settingsDone" class="btn primary">닫기</button>
+      </div>
+    </div>
+  </div>
+  <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
 
   <div id="toast" class="toast hidden"></div>
 
