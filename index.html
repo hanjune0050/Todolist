@@ -278,8 +278,12 @@
       </div>
       <div class="modal-body">
         <label class="field">
-          <span>어떤 모의고사(할 일)</span>
+          <span>추이 선택</span>
           <select id="smTask"></select>
+        </label>
+        <label class="field hidden" id="smNameField">
+          <span>새 추이 이름</span>
+          <input id="smName" type="text" maxlength="30" placeholder="예: 6월 국어 모의고사" />
         </label>
         <div class="field-row">
           <label class="field">
@@ -291,7 +295,7 @@
             <input id="smScore" type="number" min="0" max="200" step="1" inputmode="numeric" placeholder="예: 88" />
           </label>
         </div>
-        <p class="muted small">같은 할 일·같은 날짜에 점수가 있으면 덮어씁니다.</p>
+        <p class="muted small">같은 추이·같은 날짜에 점수가 있으면 덮어씁니다.</p>
       </div>
       <div class="modal-foot">
         <div class="spacer"></div>

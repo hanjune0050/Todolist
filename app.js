@@ -29,6 +29,7 @@ function normalize(obj) {
   obj = obj || {};
   obj.tasks = Array.isArray(obj.tasks) ? obj.tasks : [];
   obj.records = obj.records && typeof obj.records === 'object' ? obj.records : {};
+  obj.trends = Array.isArray(obj.trends) ? obj.trends : []; // 할 일과 무관한 독립 점수 추이
   obj.settings = obj.settings && typeof obj.settings === 'object' ? obj.settings : {};
   if (obj.settings.theme === undefined) obj.settings.theme = null; // null=자동
   if (obj.settings.sound === undefined) obj.settings.sound = true;
@@ -122,6 +123,25 @@ function scoreSeries(taskId) {
   const out = [];
   for (const ds in state.records) { const r = state.records[ds][taskId]; if (r && r.score != null) out.push({ date: ds, score: r.score }); }
   return out.sort((a, b) => a.date < b.date ? -1 : 1);
+}
+// 독립 추이 항목 (할 일과 무관)
+function trendById(id) { return state.trends.find(t => t.id === id); }
+function trendSeries(trend) {
+  return Object.entries(trend.points || {}).map(([date, score]) => ({ date, score }))
+    .sort((a, b) => a.date < b.date ? -1 : 1);
+}
+function setTrendPoint(trendId, date, score) {
+  const t = trendById(trendId); if (!t) return;
+  if (!t.points) t.points = {};
+  if (score == null || score === '' || isNaN(score)) delete t.points[date];
+  else t.points[date] = Number(score);
+  save();
+}
+function deleteTrend(trendId) {
+  const t = trendById(trendId); if (!t) return;
+  if (!confirm(`'${t.name}' 추이를 삭제할까요? (점수 기록이 모두 지워집니다)`)) return;
+  state.trends = state.trends.filter(x => x.id !== trendId);
+  save(); renderStats(); toast('추이를 삭제했어요');
 }
 function studiedMs(dateStr) {
   const day = state.records[dateStr]; if (!day) return 0;
@@ -358,62 +378,95 @@ function renderStats() {
   renderScoreTrends();
 }
 
-/* 모의고사 점수 추이 (할 일별, 전체 기간) */
+/* 모의고사 점수 추이 (할 일 기반 + 독립 항목, 전체 기간) */
+function trendCardHtml({ name, color, series, kind, id, deletable }) {
+  const scores = series.map(s => s.score);
+  const last = scores[scores.length - 1];
+  const prev = scores.length > 1 ? scores[scores.length - 2] : null;
+  const diff = prev != null ? last - prev : null;
+  const best = Math.max(...scores);
+  const diffHtml = diff == null ? '' :
+    `<span class="tr-diff ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff > 0 ? '▲' : diff < 0 ? '▼' : '–'} ${Math.abs(diff)}</span>`;
+  const delTrend = deletable ? `<button class="tr-remove" data-trend-del="${id}" aria-label="추이 삭제">삭제</button>` : '';
+  const chips = series.map(s => {
+    const d = parse(s.date);
+    return `<span class="tr-chip"><b>${s.score}</b> ${d.getMonth() + 1}/${d.getDate()}` +
+      `<button class="tr-del" data-kind="${kind}" data-id="${id}" data-date="${s.date}" aria-label="삭제">✕</button></span>`;
+  }).join('');
+  return `<div class="trend-card">` +
+    `<div class="tr-head">` +
+      `<span class="tr-name"><span class="tr-dot" style="background:${color}"></span>${escapeHtml(name)}${delTrend}</span>` +
+      `<span class="tr-last">최근 <b>${last}</b>${diffHtml} · 최고 ${best} · ${series.length}회</span>` +
+    `</div>` +
+    sparkline(series, color) +
+    `<div class="tr-chips">${chips}</div></div>`;
+}
 function renderScoreTrends() {
-  const wrap = $('scoreTrends'); wrap.innerHTML = '';
-  const examTasks = state.tasks.filter(t => t.exam);
-  let any = false;
-  for (const t of examTasks) {
+  const wrap = $('scoreTrends'); let html = ''; let any = false;
+  // 1) 할 일(모의고사) 기반
+  for (const t of state.tasks.filter(t => t.exam)) {
     const series = scoreSeries(t.id);
     if (series.length === 0) continue;
     any = true;
-    const scores = series.map(s => s.score);
-    const last = scores[scores.length - 1];
-    const prev = scores.length > 1 ? scores[scores.length - 2] : null;
-    const diff = prev != null ? last - prev : null;
-    const best = Math.max(...scores);
-    const card = document.createElement('div'); card.className = 'trend-card';
-    const diffHtml = diff == null ? '' :
-      `<span class="tr-diff ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff > 0 ? '▲' : diff < 0 ? '▼' : '–'} ${Math.abs(diff)}</span>`;
-    const chips = series.map(s => {
-      const d = parse(s.date);
-      return `<span class="tr-chip"><b>${s.score}</b> ${d.getMonth() + 1}/${d.getDate()}` +
-        `<button class="tr-del" data-task="${t.id}" data-date="${s.date}" aria-label="삭제">✕</button></span>`;
-    }).join('');
-    card.innerHTML =
-      `<div class="tr-head">` +
-        `<span class="tr-name"><span class="tr-dot" style="background:${t.color}"></span>${escapeHtml(t.title)}</span>` +
-        `<span class="tr-last">최근 <b>${last}</b>${diffHtml} · 최고 ${best} · ${series.length}회</span>` +
-      `</div>` +
-      sparkline(series, t.color) +
-      `<div class="tr-chips">${chips}</div>`;
-    wrap.appendChild(card);
+    html += trendCardHtml({ name: t.title, color: t.color, series, kind: 'task', id: t.id, deletable: false });
   }
+  // 2) 독립 추이 항목
+  for (const tr of state.trends) {
+    const series = trendSeries(tr);
+    if (series.length === 0) continue;
+    any = true;
+    html += trendCardHtml({ name: tr.name, color: tr.color, series, kind: 'trend', id: tr.id, deletable: true });
+  }
+  wrap.innerHTML = html;
   $('trendsEmpty').classList.toggle('hidden', any);
-  // 점수 삭제
+  // 점수 점(칩) 삭제
   wrap.querySelectorAll('.tr-del').forEach(btn => btn.addEventListener('click', () => {
-    setScore(btn.dataset.date, btn.dataset.task, null);
+    if (btn.dataset.kind === 'trend') setTrendPoint(btn.dataset.id, btn.dataset.date, null);
+    else setScore(btn.dataset.date, btn.dataset.id, null);
     renderAll(); renderStats();
   }));
+  // 추이 항목 전체 삭제
+  wrap.querySelectorAll('.tr-remove').forEach(btn => btn.addEventListener('click', () => deleteTrend(btn.dataset.trendDel)));
 }
 
 /* 점수 추가 모달 */
 function openScoreModal() {
   const exams = state.tasks.filter(t => t.exam);
-  if (exams.length === 0) { toast('먼저 모의고사 모드 할 일을 만들어 주세요'); return; }
+  let html = '';
+  if (exams.length) html += `<optgroup label="할 일(모의고사)">` +
+    exams.map(t => `<option value="${t.id}">${escapeHtml(t.title)} (${t.exam.subject})</option>`).join('') + `</optgroup>`;
+  if (state.trends.length) html += `<optgroup label="직접 만든 추이">` +
+    state.trends.map(tr => `<option value="${tr.id}">${escapeHtml(tr.name)}</option>`).join('') + `</optgroup>`;
+  html += `<option value="__new__">+ 새 추이 만들기…</option>`;
   const sel = $('smTask');
-  sel.innerHTML = exams.map(t => `<option value="${t.id}">${escapeHtml(t.title)} (${t.exam.subject})</option>`).join('');
+  sel.innerHTML = html;
+  // 할 일·추이가 하나도 없으면 새로 만들기 기본
+  sel.value = (exams.length || state.trends.length) ? sel.options[0].value : '__new__';
+  syncScoreModal();
   $('smDate').value = selectedDate;
   $('smScore').value = '';
+  $('smName').value = '';
   $('scoreModal').classList.remove('hidden');
-  setTimeout(() => $('smScore').focus(), 60);
+  setTimeout(() => (sel.value === '__new__' ? $('smName') : $('smScore')).focus(), 60);
 }
+function syncScoreModal() { $('smNameField').classList.toggle('hidden', $('smTask').value !== '__new__'); }
 function saveScoreEntry() {
-  const taskId = $('smTask').value, date = $('smDate').value, raw = $('smScore').value.trim();
-  if (!taskId) return toast('할 일을 선택하세요');
+  const target = $('smTask').value, date = $('smDate').value, raw = $('smScore').value.trim();
   if (!date) return toast('날짜를 선택하세요');
   if (raw === '' || isNaN(parseFloat(raw))) return toast('점수를 입력하세요');
-  setScore(date, taskId, parseFloat(raw));
+  const score = parseFloat(raw);
+  if (target === '__new__') {
+    const name = $('smName').value.trim();
+    if (!name) return toast('새 추이 이름을 입력하세요');
+    const used = state.trends.length + state.tasks.filter(t => t.exam).length;
+    const tr = { id: 'S' + Date.now() + Math.random().toString(36).slice(2, 5), name, color: COLORS[used % COLORS.length], points: {} };
+    tr.points[date] = score;
+    state.trends.push(tr); save();
+  } else if (target.charAt(0) === 'S') {
+    setTrendPoint(target, date, score);
+  } else {
+    setScore(date, target, score);
+  }
   $('scoreModal').classList.add('hidden');
   renderAll(); renderStats(); toast('점수를 추가했어요');
 }
@@ -902,8 +955,10 @@ $('addScoreBtn').addEventListener('click', openScoreModal);
 $('scoreModalClose').addEventListener('click', () => $('scoreModal').classList.add('hidden'));
 $('smCancel').addEventListener('click', () => $('scoreModal').classList.add('hidden'));
 $('smSave').addEventListener('click', saveScoreEntry);
+$('smTask').addEventListener('change', syncScoreModal);
 $('scoreModal').addEventListener('click', (e) => { if (e.target === $('scoreModal')) $('scoreModal').classList.add('hidden'); });
 $('smScore').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveScoreEntry(); });
+$('smName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('smScore').focus(); });
 
 /* 앱이 다시 보일 때: 진행 중이면 시간 재계산 + 화면깨우기 재요청 */
 document.addEventListener('visibilitychange', () => {
