@@ -390,6 +390,8 @@ function openTaskModal(task) {
   editingId = task ? task.id : null;
   $('taskModalTitle').textContent = task ? '할 일 수정' : '할 일 추가';
   $('deleteTaskBtn').style.display = task ? '' : 'none';
+  // 반복 할 일일 때만 '이 날부터 중단' 노출
+  $('cancelFromBtn').style.display = (task && task.repeat !== 'none') ? '' : 'none';
   if (task) {
     $('fTitle').value = task.title; $('fDuration').value = task.duration;
     // 예전 'weekly' 데이터는 '요일 선택'으로 변환
@@ -457,10 +459,29 @@ function saveTask() {
 }
 function deleteTask() {
   if (!editingId) return;
-  if (!confirm('이 할 일을 삭제할까요? (관련 기록도 함께 삭제됩니다)')) return;
+  if (!confirm('이 할 일을 완전히 삭제할까요? 과거 기록까지 모두 삭제됩니다.')) return;
   state.tasks = state.tasks.filter(x => x.id !== editingId);
   for (const ds in state.records) if (state.records[ds][editingId]) delete state.records[ds][editingId];
   save(); closeTaskModal(); renderAll(); toast('삭제했어요');
+}
+/* 선택한 날짜(그날)부터 이후 일정만 중단 — 이전 기록은 보존 */
+function cancelFromHere() {
+  if (!editingId) return;
+  const t = state.tasks.find(x => x.id === editingId); if (!t) return;
+  const cut = parse(selectedDate);
+  const kd = `${cut.getMonth() + 1}월 ${cut.getDate()}일`;
+  if (!confirm(`${kd}부터 '${t.title}' 일정을 삭제할까요?\n(그 이전 기록은 그대로 남습니다)`)) return;
+  // 그날 이후(그날 포함) 기록 제거
+  for (const ds in state.records) if (ds >= selectedDate && state.records[ds][t.id]) delete state.records[ds][t.id];
+  const newEnd = fmt(addDays(cut, -1));
+  if (parse(newEnd) < parse(t.start)) {
+    // 시작일보다 앞이면 할 일 자체가 남지 않음 → 전체 삭제
+    state.tasks = state.tasks.filter(x => x.id !== t.id);
+    for (const ds in state.records) if (state.records[ds][t.id]) delete state.records[ds][t.id];
+  } else {
+    t.end = newEnd;
+  }
+  save(); closeTaskModal(); renderAll(); toast(`${kd}부터 일정을 삭제했어요`);
 }
 
 /* =========================================================================
@@ -690,6 +711,7 @@ $('taskModalClose').addEventListener('click', closeTaskModal);
 $('cancelTaskBtn').addEventListener('click', closeTaskModal);
 $('saveTaskBtn').addEventListener('click', saveTask);
 $('deleteTaskBtn').addEventListener('click', deleteTask);
+$('cancelFromBtn').addEventListener('click', cancelFromHere);
 $('fRepeat').addEventListener('change', syncRepeatUI);
 $('fExam').addEventListener('change', syncExamUI);
 $('fMarking').addEventListener('change', () => { if ($('fExam').checked) applyExamDuration(); });
