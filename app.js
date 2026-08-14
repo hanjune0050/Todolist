@@ -5,13 +5,13 @@
 'use strict';
 
 /* ---------- 상수 ---------- */
-const EXAM_TIMES = { 국어: 80, 수학: 100, 영어: 50, 탐구: 30 };
-const MARKING_REDUCE = { 국어: 3, 수학: 3, 영어: 0, 탐구: 1 };
-// 차분하고 오묘한 뮤트 톤 팔레트
-const COLORS = ['#B5654D', '#C2894A', '#8A9A5B', '#4F8A7B', '#3E7C8A',
-  '#5B6B9E', '#7A6BA6', '#9C6B8E', '#B06A76', '#6B7280'];
+const EXAM_TIMES = { 국어: 80, 수학: 100, 영어: 50, 화학: 30, 지구: 30 };
+const MARKING_REDUCE = { 국어: 3, 수학: 3, 영어: 0, 화학: 1, 지구: 1 };
+// 부드럽고 연한 파스텔 톤 팔레트
+const COLORS = ['#E19C8A', '#E3B87E', '#B9C595', '#8FC5B5', '#8FBCCB',
+  '#A3ADD8', '#B7A6D2', '#D0A6C4', '#DDA6B2', '#AEB4C0'];
 // 과목별 기본색 (선택 시 자동 지정)
-const SUBJECT_COLORS = { 국어: '#B5654D', 수학: '#45688E', 영어: '#4F8A7B', 탐구: '#7A6BA6' };
+const SUBJECT_COLORS = { 국어: '#E19C8A', 수학: '#8FA9D6', 영어: '#8FC5B5', 화학: '#B7A6D2', 지구: '#E3B87E' };
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const SESSION_MIN_MS = 60 * 1000;   // 1분 이상만 기록
 const TT_H0 = 8, TT_H1 = 23;        // 타임테이블 시간 행(08시~23시, 24:00까지)
